@@ -1,0 +1,15 @@
+
+version: '3'
+
+services:
+  app:
+    build: .
+    container_name: html-previewe-app
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist the uploads folder
+      - ./public/uploads:/app/public/uploads
+      # Persist the database file
+      - ./data:/app/data

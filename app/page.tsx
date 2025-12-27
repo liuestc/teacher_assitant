@@ -4,12 +4,20 @@ import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import RecordCard from '@/components/RecordCard';
 
+import fs from 'fs/promises';
+import path from 'path';
+
+export const dynamic = 'force-dynamic';
+
 async function getRecords(): Promise<HtmlRecord[]> {
-  const res = await fetch('http://localhost:3000/api/records', { cache: 'no-store' });
-  if (!res.ok) {
-    throw new Error('Failed to fetch data');
+  try {
+    const dbPath = path.join(process.cwd(), 'data/db.json');
+    const data = await fs.readFile(dbPath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading records:', error);
+    return [];
   }
-  return res.json();
 }
 
 export default async function Home() {
@@ -43,8 +51,8 @@ export default async function Home() {
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {records.map((record) => (
-            <RecordCard key={record.id} record={record} />
+          {records.map((record, index) => (
+            <RecordCard key={record.id} record={record} index={index} />
           ))}
         </div>
       )}

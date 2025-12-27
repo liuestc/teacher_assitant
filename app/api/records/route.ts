@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
+
 const DB_PATH = path.join(process.cwd(), 'data/db.json');
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {

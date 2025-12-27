@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { FileText, Calendar, Tag, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 
-export default function RecordCard({ record }: { record: HtmlRecord }) {
+export default function RecordCard({ record, index }: { record: HtmlRecord, index: number }) {
     const router = useRouter();
     const [deleting, setDeleting] = useState(false);
 
@@ -31,12 +32,21 @@ export default function RecordCard({ record }: { record: HtmlRecord }) {
     };
 
     return (
-        <div className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-6 shadow-sm transition-all hover:shadow-md border border-gray-100 ${deleting ? 'opacity-50' : ''}`}>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}
+            className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-6 shadow-sm transition-all border border-gray-100 ${deleting ? 'opacity-50' : ''}`}
+        >
             <div>
                 <div className="flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <motion.div
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors"
+                    >
                         <FileText className="h-6 w-6" />
-                    </div>
+                    </motion.div>
                     <div className="flex items-center gap-2">
                         <Link
                             href={`/edit/${record.id}`}
@@ -81,14 +91,16 @@ export default function RecordCard({ record }: { record: HtmlRecord }) {
                     <Calendar className="mr-1.5 h-3.5 w-3.5" />
                     {new Date(record.uploadDate).toLocaleDateString()}
                 </div>
-                <Link
-                    href={`/preview/${record.id}`}
+                <a
+                    href={`/uploads/${record.filename}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
                 >
                     Preview
                     <ExternalLink className="ml-1 h-3.5 w-3.5" />
-                </Link>
+                </a>
             </div>
-        </div>
+        </motion.div>
     );
 }
