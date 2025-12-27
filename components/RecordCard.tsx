@@ -89,7 +89,7 @@ export default function RecordCard({ record, index }: { record: HtmlRecord, inde
             <div className="mt-6 border-t border-gray-100 pt-4 flex items-center justify-between">
                 <div className="flex items-center text-xs text-gray-500">
                     <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                    {new Date(record.uploadDate).toLocaleDateString()}
+                    {new Date(record.uploadDate).toLocaleDateString('zh-CN')}
                 </div>
                 <a
                     href={`/uploads/${record.filename}`}
