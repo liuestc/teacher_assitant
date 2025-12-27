@@ -50,5 +50,17 @@
     "filename": "be9b825a-3cb6-4f58-bf2d-7dea5a11b076.html",
     "originalName": "00丨学习指南丨我想和你交代下这门课的设计思路.html",
     "uploadDate": "2025-12-27T07:35:38.295Z"
+  },
+  {
+    "id": "9292ef7f-1db0-421c-94d8-0a62f205605e",
+    "title": "Test Folder Upload",
+    "tags": [
+      "test",
+      "folder"
+    ],
+    "filename": "9292ef7f-1db0-421c-94d8-0a62f205605e/index.html",
+    "originalName": "test.zip",
+    "uploadDate": "2025-12-27T08:26:50.385Z",
+    "isFolder": true
   }
 ]
