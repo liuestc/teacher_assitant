@@ -22,11 +22,19 @@ export async function DELETE(
 
         const record = records[recordIndex];
 
-        // Delete file
+        // Delete file or folder
         try {
-            await fs.unlink(path.join(UPLOAD_DIR, record.filename));
+            if (record.isFolder) {
+                // For folders, we need to delete the entire directory
+                // The directory name is the record ID (see upload logic)
+                const folderPath = path.join(UPLOAD_DIR, record.id);
+                await fs.rm(folderPath, { recursive: true, force: true });
+            } else {
+                // For single files
+                await fs.unlink(path.join(UPLOAD_DIR, record.filename));
+            }
         } catch (e) {
-            console.error('Error deleting file:', e);
+            console.error('Error deleting file/folder:', e);
             // Continue deleting record even if file deletion fails
         }
 
