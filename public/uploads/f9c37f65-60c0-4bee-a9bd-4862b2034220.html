@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>慢速垂直海拔气压实验</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            background-color: #2c3e50;
+            font-family: 'Segoe UI', Roboto, "Microsoft YaHei", sans-serif;
+            overflow: hidden;
+        }
+
+        /* 左侧：垂直实验舱 (65%) */
+        #chamber-view {
+            flex: 65;
+            position: relative;
+            background: linear-gradient(to top, #87CEEB 0%, #3498db 50%, #1a2a4f 100%);
+            border-right: 6px solid #34495e;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.3);
+        }
+
+        /* 刻度线容器 */
+        #ruler-container {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .tick-mark {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.7);
+            padding-left: 10px;
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+
+        /* 升降平台 */
+        #elevator-platform {
+            position: absolute;
+            bottom: 5%; /* 初始位置 */
+            width: 220px;
+            height: 100px; /* 仅底座高度 */
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            /* 注意：移除了 transition 以保证JS控制的低速移动更跟手 */
+        }
+
+        /* 钢缆 */
+        .cable {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            width: 4px;
+            height: 200vh;
+            background: linear-gradient(to right, #7f8c8d, #bdc3c7);
+            transform: translateX(-50%);
+            z-index: -1;
+        }
+
+        /* 平台底座 */
+        .platform-base {
+            width: 100%;
+            height: 25px;
+            background: linear-gradient(to bottom, #95a5a6, #7f8c8d);
+            border-radius: 4px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            border-top: 2px solid #bdc3c7;
+        }
+
+        /* 包装袋 */
+        #snack-bag {
+            width: 100px;
+            height: 130px;
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+            border: 3px solid #d35400;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #5e4004;
+            font-weight: bold;
+            box-shadow: inset 0 0 20px rgba(255,255,255,0.2), 0 5px 10px rgba(0,0,0,0.2);
+            transform-origin: bottom center;
+            transition: transform 0.1s linear, background-color 0.2s;
+            position: relative;
+            z-index: 12;
+        }
+        
+        /* 封口纹理 */
+        #snack-bag::before, #snack-bag::after {
+            content: ''; position: absolute; width: 100%; height: 10px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);
+        }
+        #snack-bag::before { top: 0; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        #snack-bag::after { bottom: 0; border-top: 1px solid rgba(0,0,0,0.1); }
+
+        /* 震动动画 */
+        .shake-hard { animation: shake 0.1s infinite; }
+        @keyframes shake {
+            0% { transform: scale(var(--s)) translate(1px, 1px) rotate(0deg); }
+            25% { transform: scale(var(--s)) translate(-2px, -2px) rotate(-2deg); }
+            50% { transform: scale(var(--s)) translate(2px, 0px) rotate(2deg); }
+            75% { transform: scale(var(--s)) translate(-1px, 2px) rotate(-1deg); }
+            100% { transform: scale(var(--s)) translate(0, 0) rotate(0); }
+        }
+
+        /* 爆炸白光闪烁 */
+        #flash-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: white; opacity: 0; pointer-events: none; z-index: 100;
+            transition: opacity 0.1s;
+        }
+
+        /* 爆炸文字 */
+        #boom-text {
+            position: absolute;
+            font-family: 'Impact', sans-serif;
+            font-size: 80px;
+            color: #e74c3c;
+            text-shadow: 4px 4px 0 #fff, -2px -2px 0 #000;
+            transform: translate(-50%, -50%) scale(0);
+            pointer-events: none;
+            z-index: 50;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* 爆炸碎片粒子 */
+        .particle {
+            position: absolute;
+            width: 12px; height: 12px;
+            background: #f39c12;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* 右侧：数据面板 (35%) */
+        #data-panel {
+            flex: 35;
+            background: #f8f9fa;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.1);
+        }
+
+        h2 { margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+
+        .metric-card {
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee;
+        }
+        .metric-label { font-size: 0.9rem; color: #7f8c8d; display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .metric-val { font-size: 1.6rem; font-weight: bold; color: #2c3e50; font-family: monospace; }
+        
+        .bar-bg { height: 14px; background: #e9ecef; border-radius: 7px; overflow: hidden; margin-top: 8px; }
+        .bar-fill { height: 100%; transition: width 0.1s linear, background-color 0.3s; }
+
+        #btn-control {
+            margin-top: auto; padding: 15px; font-size: 1.1rem;
+            background: #27ae60; color: white; border: none; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s; font-weight: bold;
+            box-shadow: 0 4px 0 #219150;
+        }
+        #btn-control:active { transform: translateY(4px); box-shadow: none; }
+        #btn-control:disabled { background: #95a5a6; box-shadow: none; cursor: not-allowed; }
+
+    </style>
+</head>
+<body>
+
+    <div id="flash-overlay"></div>
+
+    <div id="chamber-view">
+        <div id="ruler-container"></div> 
+
+        <div id="elevator-platform">
+            <div class="cable"></div>
+            <div id="snack-bag">
+                <span style="font-size: 1.2em; text-shadow: 1px 1px 0 rgba(255,255,255,0.4);">薯片</span>
+                <span style="font-size:0.7em; opacity: 0.8;">NET WT. 60g</span>
+            </div>
+            <div class="platform-base"></div>
+        </div>
+
+        <div id="boom-text">BOOM!</div>
+    </div>
+
+    <div id="data-panel">
+        <h2>实验监控面板</h2>
+
+        <div class="metric-card">
+            <div class="metric-label"><span>当前海拔 (Altitude)</span></div>
+            <div id="val-altitude" class="metric-val">0 m</div>
+            <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">爆炸预设高度: 6,000m</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label"><span>外部气压 (P_out)</span></div>
+            <div id="val-pressure" class="metric-val">1.00 atm</div>
+            <div class="bar-bg">
+                <div id="bar-pressure" class="bar-fill" style="width: 100%; background: #3498db;"></div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label"><span>包装袋应力 (Stress)</span></div>
+            <div id="val-status" class="metric-val" style="color: #27ae60; font-size: 1.2rem;">正常 (Safe)</div>
+            <div class="bar-bg">
+                <div id="bar-stress" class="bar-fill" style="width: 0%; background: #f1c40f;"></div>
+            </div>
+        </div>
+
+        <button id="btn-control">开始缓慢上升</button>
+    </div>
+
+    <script>
+        // === 配置参数 ===
+        const MAX_ALTITUDE = 10000;   
+        const BURST_ALTITUDE = 6000;  // 爆炸发生在 6000米 (屏幕中下部视野较好)
+        
+        // --- 核心修改：速度控制 ---
+        // 之前是 30，现在改为 6 (数字越小，速度越慢)
+        const ASCENT_SPEED = 6; 
+
+        // DOM 元素
+        const platform = document.getElementById('elevator-platform');
+        const bag = document.getElementById('snack-bag');
+        const flash = document.getElementById('flash-overlay');
+        const boomText = document.getElementById('boom-text');
+        const chamber = document.getElementById('chamber-view');
+        const btn = document.getElementById('btn-control');
+        
+        const elAlt = document.getElementById('val-altitude');
+        const elPres = document.getElementById('val-pressure');
+        const elStatus = document.getElementById('val-status');
+        const barPres = document.getElementById('bar-pressure');
+        const barStress = document.getElementById('bar-stress');
+
+        let isRunning = false;
+        let animationId;
+        let currentAlt = 0;
+
+        // 初始化刻度线
+        function initRuler() {
+            const container = document.getElementById('ruler-container');
+            for(let i=0; i<=MAX_ALTITUDE; i+=1000) {
+                const line = document.createElement('div');
+                line.className = 'tick-mark';
+                // 10000m 对应 90% 的屏幕高度
+                const pct = (i / MAX_ALTITUDE) * 90 + 5; 
+                line.style.bottom = pct + '%';
+                line.textContent = i + ' m';
+                if(i === BURST_ALTITUDE) {
+                    line.style.borderTop = "2px dashed #e74c3c";
+                    line.style.color = "#e74c3c";
+                    line.textContent += " (爆裂点)";
+                }
+                container.appendChild(line);
+            }
+        }
+        initRuler();
+
+        function update() {
+            if(!isRunning) return;
+
+            // 1. 速度控制
+            currentAlt += ASCENT_SPEED; 
+
+            // 2. 计算位置
+            const screenPct = 5 + (currentAlt / MAX_ALTITUDE) * 90;
+            platform.style.bottom = screenPct + '%';
+
+            // 3. 计算气压
+            let pOut = Math.max(0.1, 1.0 - (currentAlt / 8000));
+            
+            // 4. 计算膨胀
+            let scale = 1.0 / pOut;
+            let visualScale = 1 + (scale - 1) * 0.7; 
+
+            // 5. 更新UI
+            elAlt.textContent = currentAlt + " m";
+            elPres.textContent = pOut.toFixed(2) + " atm";
+            barPres.style.width = (pOut * 100) + "%";
+
+            // 应力百分比
+            let stressPct = (currentAlt / BURST_ALTITUDE) * 100;
+            barStress.style.width = Math.min(stressPct, 100) + "%";
+
+            // 6. 状态逻辑
+            if(stressPct < 50) {
+                bag.style.transform = `scale(${visualScale})`;
+                bag.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
+                elStatus.textContent = "正常 (Safe)";
+                elStatus.style.color = "#27ae60";
+                barStress.style.background = "#f1c40f";
+                bag.classList.remove('shake-hard');
+            } else if (stressPct < 96) {
+                bag.style.transform = `scale(${visualScale})`;
+                bag.style.background = "linear-gradient(135deg, #e67e22, #d35400)";
+                elStatus.textContent = "高压警报 (Warning)";
+                elStatus.style.color = "#e67e22";
+                barStress.style.background = "#e67e22";
+                bag.classList.remove('shake-hard');
+            } else {
+                // 临界震动
+                bag.style.setProperty('--s', visualScale);
+                bag.classList.add('shake-hard');
+                bag.style.background = "linear-gradient(135deg, #c0392b, #b03a2e)";
+                elStatus.textContent = "即将爆炸 (CRITICAL)";
+                elStatus.style.color = "#c0392b";
+                barStress.style.background = "#c0392b";
+            }
+
+            // 7. 触发爆炸
+            if(currentAlt >= BURST_ALTITUDE) {
+                triggerExplosion();
+                return;
+            }
+
+            if(currentAlt < MAX_ALTITUDE) {
+                animationId = requestAnimationFrame(update);
+            } else {
+                isRunning = false; 
+            }
+        }
+
+        function triggerExplosion() {
+            isRunning = false;
+            
+            bag.style.visibility = 'hidden';
+            bag.classList.remove('shake-hard');
+
+            flash.style.opacity = 0.8;
+            setTimeout(() => flash.style.opacity = 0, 100);
+
+            // 文字出现
+            boomText.style.top = "auto";
+            boomText.style.bottom = (parseFloat(platform.style.bottom) + 5) + "%";
+            boomText.style.transform = "translate(-50%, 0) scale(1)";
+
+            createDebris();
+
+            elStatus.textContent = "已爆炸 (EXPLODED)";
+            elStatus.style.color = "#000";
+            btn.textContent = "重置实验";
+            btn.style.background = "#3498db";
+            btn.style.boxShadow = "0 4px 0 #2980b9";
+            btn.disabled = false;
+        }
+
+        function createDebris() {
+            const rect = bag.getBoundingClientRect();
+            const chamberRect = chamber.getBoundingClientRect();
+            
+            const startX = rect.left - chamberRect.left + rect.width/2;
+            const startY = rect.top - chamberRect.top + rect.height/2;
+
+            for(let i=0; i<30; i++) {
+                const p = document.createElement('div');
+                p.classList.add('particle');
+                
+                const size = 5 + Math.random() * 15;
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.backgroundColor = Math.random() > 0.4 ? '#f39c12' : '#c0392b';
+                p.style.left = startX + 'px';
+                p.style.top = startY + 'px';
+                p.style.transform = `rotate(${Math.random()*360}deg)`;
+
+                chamber.appendChild(p);
+
+                const velocityX = (Math.random() - 0.5) * 400; 
+                const velocityY = (Math.random() - 1.2) * 400; 
+                
+                const anim = p.animate([
+                    { transform: `translate(0,0) rotate(0deg)`, opacity: 1 },
+                    { transform: `translate(${velocityX * 0.5}px, ${velocityY * 0.5}px) rotate(180deg)`, opacity: 0.8, offset: 0.4 },
+                    { transform: `translate(${velocityX}px, 600px) rotate(720deg)`, opacity: 0 } 
+                ], {
+                    duration: 1500 + Math.random() * 500,
+                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                });
+
+                anim.onfinish = () => p.remove();
+            }
+        }
+
+        btn.addEventListener('click', () => {
+            if(btn.textContent.includes("重置")) {
+                currentAlt = 0;
+                platform.style.bottom = '5%';
+                bag.style.visibility = 'visible';
+                bag.style.transform = 'scale(1)';
+                bag.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
+                boomText.style.transform = "translate(-50%, -50%) scale(0)";
+                
+                elAlt.textContent = "0 m";
+                elPres.textContent = "1.00 atm";
+                barPres.style.width = "100%";
+                elStatus.textContent = "正常 (Safe)";
+                elStatus.style.color = "#27ae60";
+                barStress.style.width = "0%";
+                barStress.style.background = "#f1c40f";
+
+                btn.textContent = "开始缓慢上升";
+                btn.style.background = "#27ae60";
+                btn.style.boxShadow = "0 4px 0 #219150";
+            } else {
+                if(!isRunning) {
+                    isRunning = true;
+                    btn.disabled = true;
+                    btn.textContent = "实验运行中...";
+                    btn.style.background = "#95a5a6";
+                    btn.style.boxShadow = "none";
+                    update();
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
