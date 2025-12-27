@@ -12,8 +12,14 @@ export default function RecordCard({ record, index }: { record: HtmlRecord, inde
     const router = useRouter();
     const [deleting, setDeleting] = useState(false);
 
-    const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+    const [confirmDelete, setConfirmDelete] = useState(false);
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        // Prevent event propagation if needed, though mostly safe here
+        e.preventDefault();
+
+        if (!confirmDelete) {
+            setConfirmDelete(true);
             return;
         }
 
@@ -28,6 +34,7 @@ export default function RecordCard({ record, index }: { record: HtmlRecord, inde
         } catch (e) {
             alert('Failed to delete record');
             setDeleting(false);
+            setConfirmDelete(false);
         }
     };
 
@@ -58,10 +65,19 @@ export default function RecordCard({ record, index }: { record: HtmlRecord, inde
                         <button
                             onClick={handleDelete}
                             disabled={deleting}
-                            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Delete"
+                            onBlur={() => setConfirmDelete(false)}
+                            className={`p-1.5 transition-colors ${confirmDelete
+                                ? 'text-red-600 bg-red-50 hover:bg-red-100 ring-2 ring-red-600/20 rounded-md'
+                                : 'text-gray-400 hover:text-red-600'
+                                }`}
+                            title={confirmDelete ? "Click again to confirm" : "Delete"}
+                            type="button"
                         >
-                            <Trash2 className="h-4 w-4" />
+                            {confirmDelete ? (
+                                <span className="text-xs font-bold px-1">Sure?</span>
+                            ) : (
+                                <Trash2 className="h-4 w-4" />
+                            )}
                         </button>
                         <span className="inline-flex items-center rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
                             HTML
